@@ -137,7 +137,7 @@ module Fluent
         ActiveRecord::Base.establish_connection(
           adapter:    "jdbc",
           driver:     "com.vertica.jdbc.Driver",
-          url:        "jdbc:vertica://#{@host}:#{@port}/"
+          url:        "jdbc:vertica://#{@host}:#{@port}/",
           user:       @username,
           password:   @password,
           database:   @database
