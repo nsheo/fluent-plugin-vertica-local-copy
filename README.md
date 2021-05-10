@@ -1,0 +1,1 @@
+# fluent-plugin-vertica-local-copy
