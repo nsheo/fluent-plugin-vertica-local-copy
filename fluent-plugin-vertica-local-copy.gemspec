@@ -3,7 +3,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |spec|
   spec.name    = "fluent-plugin-vertica-local-copy"
-  spec.version = "0.0.2"
+  spec.version = "0.0.3"
   spec.authors = ["nsheo"]
   spec.email   = ["nsheo@ntels.com"]
 
@@ -24,4 +24,6 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "test-unit", "~> 3.0"
   spec.add_runtime_dependency "fluentd", [">= 0.14.10", "< 2"]
   spec.add_runtime_dependency "dbi", "~> 0.4.0"
+  spec.add_runtime_dependency "dbd-odbc", "~> 0.2.0"
+  spec.add_runtime_dependency "ruby-odbc", '~> 0.0'
 end

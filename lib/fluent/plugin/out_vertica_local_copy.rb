@@ -36,7 +36,7 @@ module Fluent
       config_param :port,           :integer, :default => 5433, desc: "Database port"
       config_param :username,       :string,  :default => 'dbadmin', desc: "Database user"
       config_param :password,       :string,  :default => nil, desc: "Database password"
-      config_param :database,       :string,  :default => nil, desc: "Database name"
+      config_param :dsn,            :string,  :default => nil, desc: "Vertica DSN name on odbc.ini"
       config_param :schema,         :string,  :default => nil, desc: "Database schema"
       config_param :table,          :string,  :default => nil, desc: "Database target table"
       config_param :column_names,   :string,  :default => nil, desc: "Column names for data load"
@@ -48,8 +48,8 @@ module Fluent
       def configure(conf)
         compat_parameters_convert(conf, :buffer, :inject)
         super
-        if @database.nil? || @table.nil? || @column_names.nil? || @schema.nil?
-          raise Fluent::ConfigError, "database and schema and tablename and column_names is required."
+        if @dsn.nil? || @table.nil? || @column_names.nil? || @schema.nil?
+          raise Fluent::ConfigError, "dsn and schema and tablename and column_names is required."
         end
 		
         @key_names = @key_names.nil? ? @column_names.split(',') : @key_names.split(',')
@@ -80,14 +80,14 @@ module Fluent
       end
 	  
      def expand_placeholders(metadata)
-        database = extract_placeholders(@database, metadata).gsub('.', '_')
+        dsn = extract_placeholders(@dsn, metadata).gsub('.', '_')
         table = extract_placeholders(@table, metadata).gsub('.', '_')
-        return database, table
+        return dsn, table
       end
 	  
       def write(chunk)
         #log.info "Data reformatting start"
-        database, table = expand_placeholders(chunk.metadata)
+        dsn, table = expand_placeholders(chunk.metadata)
     		
         data_count = 0
         tmp = Tempfile.new("vertica-copy-temp")
@@ -107,9 +107,7 @@ module Fluent
           verticaCopyRun(QUERY_TEMPLATE % ([@schema, @table, @column_names, tmp.path, @rejected_path, @exception_path, @table, current_time]))
         end
 
-        vertica.close
-        @vertica = nil
-        log.info "Stream Data \"%s:%s:%s:%sFluentd%d:%d\"" % ([@database, @schema, @table, @table, current_time, data_count])
+        log.info "Stream Data \"%s:%s:%s:%sFluentd%d:%d\"" % ([@dsn, @schema, @table, @table, current_time, data_count])
       end
 
 	  
@@ -133,14 +131,13 @@ module Fluent
       def verticaCopyRun(queryStr)
         begin
           vertica = DBI.connect(
-            "DBI:ODBC:vertica://#{@host}:#{@port}/#{@database}",
+            "dbi:ODBC:#{@dsn}",
             @username,
-            @password,
-            'driver' => 'com.vertica.jdbc.Driver'
+            @password
           )
-          vertica['AutoCommit'] = false
-          vertica.query(queryStr)
+          vertica.do(queryStr)
         rescue
+          log.info "ODBC error willbe rollback"
           vertica.rollback if vertica
           raise
         else
