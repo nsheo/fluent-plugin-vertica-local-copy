@@ -6,6 +6,14 @@
 
 ## Installation
 
+### Dependency
+```
+unixODBC-devel(RPM/OS Package - must install before gem install ruby-odbc)
+ruby-odbc
+dbd-odbc
+dbi
+```
+
 ### RubyGems
 
 ```
@@ -42,7 +50,7 @@ $ fluent-plugin-config-format output vertica-csv-copy
   port 5433
   username taro
   password abcdefg
-  database fluentd
+  dsn fluentd
   schema VTCD
   table test
   
