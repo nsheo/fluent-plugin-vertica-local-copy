@@ -29,8 +29,7 @@ module Fluent
       def initialize
         super
         require 'tempfile'
-        require 'activerecord-jdbc-adapter'
-        require 'jdbc-vertica'
+        require 'dbi'
       end 
 	  
       config_param :host,           :string,  :default => '127.0.0.1', desc: "Database host"
@@ -103,9 +102,9 @@ module Fluent
         current_time = (Time.now.to_f * 1000).round
         FileUtils.chmod(0644, tmp.path)
         if @rejected_path.nil?
-          verticaSqlRun(QUERY_TEMPLATE_NORJT % ([@schema, @table, @column_names, tmp.path, @table, current_time]))
+          verticaCopyRun(QUERY_TEMPLATE_NORJT % ([@schema, @table, @column_names, tmp.path, @table, current_time]))
         else
-          verticaSqlRun(QUERY_TEMPLATE % ([@schema, @table, @column_names, tmp.path, @rejected_path, @exception_path, @table, current_time]))
+          verticaCopyRun(QUERY_TEMPLATE % ([@schema, @table, @column_names, tmp.path, @rejected_path, @exception_path, @table, current_time]))
         end
 
         vertica.close
@@ -130,20 +129,27 @@ module Fluent
           values
         end
       end
-
 	  
-      def verticaSqlRun(sqlStr)
-        Jdbc::Vertica.load_driver
-        ActiveRecord::Base.establish_connection(
-          adapter:    "jdbc",
-          driver:     "com.vertica.jdbc.Driver",
-          url:        "jdbc:vertica://#{@host}:#{@port}/",
-          user:       @username,
-          password:   @password,
-          database:   @database
-        )
-        ActiveRecord::Base.connection.execute(sqlStr)
+      def verticaCopyRun(queryStr)
+        begin
+          vertica = DBI.connect(
+            "DBI:ODBC:vertica://#{@host}:#{@port}/#{@database}",
+            @username,
+            @password,
+            'driver' => 'com.vertica.jdbc.Driver'
+          )
+          vertica['AutoCommit'] = false
+          vertica.query(queryStr)
+        rescue
+          vertica.rollback if vertica
+          raise
+        else
+          vertica.commit
+        ensure
+          vertica.disconnect if vertica
+        end
       end
+
     end
   end
 end
